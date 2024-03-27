@@ -9,8 +9,12 @@ def test_generate_password():
     assert len(password) >= 8
     assert type(password) is str
 
+@pytest.fixture
+def clear_users():
+    model.Session.query(model.User).delete()
 
-@pytest.mark.usefixtures(u'clean_db', u'clean_index')
+
+@pytest.mark.usefixtures(u'clear_users', u'clean_index')
 def test_activate_user_if_deleted():
     user = factories.User()
     user = model.User.get(user[u'name'])
@@ -19,7 +23,7 @@ def test_activate_user_if_deleted():
     assert not user.is_deleted()
 
 
-@pytest.mark.usefixtures(u'clean_db')
+@pytest.mark.usefixtures(u'clear_users')
 def test_ensure_unique_user_name_existing_user():
 
     user = factories.User(

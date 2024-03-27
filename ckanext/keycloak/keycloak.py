@@ -19,6 +19,9 @@ class KeycloakClient:
 
     def get_token(self, code, redirect_uri):
         return self.get_keycloak_client().token(grant_type="authorization_code", code=code, redirect_uri=redirect_uri)
+    
+    def logout(self, refresh_token):
+        return self.get_keycloak_client().logout(refresh_token)
 
     def get_user_info(self, token):
         return self.get_keycloak_client().userinfo(token.get('access_token'))

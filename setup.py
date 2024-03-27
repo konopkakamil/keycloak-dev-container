@@ -85,7 +85,7 @@ setup(
     entry_points='''
         [ckan.plugins]
         keycloak=ckanext.keycloak.plugin:KeycloakPlugin
-
+        
         [babel.extractors]
         ckan = ckan.lib.extract:extract_ckan
     ''',

@@ -9,10 +9,12 @@ from ckanext.keycloak.keycloak import KeycloakClient
 import ckanext.keycloak.helpers as helpers
 from os import environ
 
+from ckanext.keycloak.oauth2 import OAuth2Helper
+
 log = logging.getLogger(__name__)
 
 keycloak = Blueprint('keycloak', __name__, url_prefix='/user')
-
+oauth2 = OAuth2Helper()
 
 server_url = tk.config.get('ckanext.keycloak.server_url', environ.get('CKANEXT__KEYCLOAK__SERVER_URL'))
 client_id = tk.config.get('ckanext.keycloak.client_id', environ.get('CKANEXT__KEYCLOAK__CLIENT_ID'))
@@ -56,7 +58,7 @@ def sso_login():
     data = tk.request.args
     token = client.get_token(data['code'], redirect_uri)
     userinfo = client.get_user_info(token)
-    log.info("SSO Login: {}".format(userinfo))
+
     if userinfo:
         user_dict = {
             'name': helpers.ensure_unique_username_from_email(userinfo['preferred_username']),
@@ -73,6 +75,8 @@ def sso_login():
         context['user'] = g.user
         context['auth_user_obj'] = g.user_obj
 
+        oauth2.update_token(g.user_obj.name, token)
+
         response = tk.redirect_to(tk.url_for('user.me', context))
 
         _log_user_into_ckan(response)
@@ -80,7 +84,7 @@ def sso_login():
         return response
     else:
         return tk.redirect_to(tk.url_for('user.login'))
-
+    
 def reset_password():
     email = tk.request.form.get('user', None)
     if '@' not in email:
@@ -98,8 +102,25 @@ def reset_password():
         return tk.redirect_to(tk.url_for('user.login'))
     return RequestResetView().post()
 
+def sso_logout(): 
+        token = oauth2.get_stored_token(g.user)
+
+        if token:
+            try:
+                client.logout(token['refresh_token'])
+            except Exception as e:
+                log.info('Exception occurred: {}'.format(e))
+            finally:
+                oauth2.delete_token(g.user)
+        
+        from ckan.common import logout_user
+        logout_user()
+
+        return h.redirect_to('user.logged_out_page')
+
 keycloak.add_url_rule('/sso', view_func=sso)
 keycloak.add_url_rule('/sso_login', view_func=sso_login)
+keycloak.add_url_rule('/sso_logout', view_func=sso_logout)
 keycloak.add_url_rule('/reset_password', view_func=reset_password, methods=['POST'])
 
 def get_blueprint():
